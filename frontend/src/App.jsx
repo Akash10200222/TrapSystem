@@ -2,13 +2,12 @@ import {
   RefreshCw,
   Bug,
   TrendingUp,
-  TrendingDown,
   Calendar,
   Activity,
   Zap,
   Wifi,
   AlertCircle,
-  BarChart3,
+  Database,
 } from 'lucide-react';
 import { useTrapData } from './hooks/useTrapData';
 import { StatCard } from './components/StatCard';
@@ -20,22 +19,20 @@ export default function App() {
     entries,
     totalCount,
     todayCount,
+    priorTotal,
     latestValue,
     hourlyData,
     loading,
     error,
     lastUpdated,
+    dayPriorMap,
     refresh,
   } = useTrapData();
 
   const peakHour = hourlyData.reduce(
     (max, h) => (h.countPerHour > max.countPerHour ? h : max),
-    { label: '—', countPerHour: 0, hour: '', cumulativeTotal: 0 }
+    { label: '—', countPerHour: 0, hour: '', cumulativeTotal: 0, sensorReading: 0 }
   );
-
-  const totalEntries = entries.length;
-  const positiveEntries = entries.filter(e => e.value > 0).length;
-  const negativeEntries = entries.filter(e => e.value < 0).length;
 
   if (loading) {
     return (
@@ -67,7 +64,7 @@ export default function App() {
           </div>
           <button
             onClick={refresh}
-            className="mt-3 flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:shadow-xl hover:shadow-red-600/40 active:scale-95"
+            className="mt-3 flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:shadow-xl active:scale-95"
           >
             <RefreshCw className="h-4 w-4" />
             Try Again
@@ -88,14 +85,10 @@ export default function App() {
                 <Bug className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold tracking-tight text-white">
-                  TrapSystem
-                </h1>
+                <h1 className="text-lg font-bold tracking-tight text-white">TrapSystem</h1>
                 <div className="flex items-center gap-1.5">
                   <Wifi className="h-2.5 w-2.5 text-violet-400" />
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-violet-400">
-                    IoT Dashboard
-                  </p>
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-violet-400">IoT Dashboard</p>
                 </div>
               </div>
             </div>
@@ -136,61 +129,47 @@ export default function App() {
             <Activity className="h-3.5 w-3.5 text-slate-500" />
             <p className="text-xs text-slate-500">
               Last updated:{' '}
-              {lastUpdated.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true,
-              })}
+              {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
             </p>
           </div>
           <span className="text-slate-700">·</span>
           <p className="text-xs text-slate-500">Auto-refresh every 5s</p>
-          <span className="text-slate-700">·</span>
-          <p className="text-xs text-slate-500">
-            <span className="text-emerald-400">{positiveEntries} ↑</span>{' '}
-            <span className="text-red-400">{negativeEntries} ↓</span>{' '}
-            of {totalEntries} entries
-          </p>
         </div>
 
         {/* Stat Cards */}
         <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatCard
-            title="Latest Value"
+            title="Current Reading"
             value={latestValue}
-            subtitle="Most recent reading"
+            subtitle="Latest sensor value"
             icon={<Zap className="h-5 w-5 text-amber-300" />}
             gradientFrom="from-amber-600"
             gradientTo="to-orange-700"
             glowColor="shadow-amber-500/20"
           />
           <StatCard
-            title="Net Total"
-            value={totalCount}
-            subtitle={`+${entries.filter(e => e.value > 0).reduce((s, e) => s + e.value, 0)} / ${entries.filter(e => e.value < 0).reduce((s, e) => s + e.value, 0)}`}
-            icon={<BarChart3 className="h-5 w-5 text-violet-300" />}
-            gradientFrom="from-violet-600"
-            gradientTo="to-purple-700"
-            glowColor="shadow-violet-500/20"
-          />
-          <StatCard
-            title="Today"
+            title="Today's Count"
             value={todayCount}
-            subtitle="Since midnight"
+            subtitle="Resets at midnight"
             icon={<Calendar className="h-5 w-5 text-cyan-300" />}
             gradientFrom="from-cyan-600"
             gradientTo="to-blue-700"
             glowColor="shadow-cyan-500/20"
           />
           <StatCard
-            title="Peak Hour"
-            value={peakHour.countPerHour}
-            subtitle={peakHour.label !== '—' ? `at ${peakHour.label}` : 'No data'}
-            icon={peakHour.countPerHour >= 0
-              ? <TrendingUp className="h-5 w-5 text-emerald-300" />
-              : <TrendingDown className="h-5 w-5 text-red-300" />
-            }
+            title="Prior Total"
+            value={priorTotal}
+            subtitle="Sum of all past days"
+            icon={<Database className="h-5 w-5 text-fuchsia-300" />}
+            gradientFrom="from-fuchsia-600"
+            gradientTo="to-pink-700"
+            glowColor="shadow-fuchsia-500/20"
+          />
+          <StatCard
+            title="Total Count"
+            value={totalCount}
+            subtitle={`Prior ${priorTotal} + Today ${todayCount}`}
+            icon={<TrendingUp className="h-5 w-5 text-emerald-300" />}
             gradientFrom="from-emerald-600"
             gradientTo="to-teal-700"
             glowColor="shadow-emerald-500/20"
@@ -209,7 +188,7 @@ export default function App() {
 
         {/* History Table */}
         <div className="rounded-2xl border border-fuchsia-500/20 bg-gradient-to-br from-fuchsia-950/50 to-slate-900 p-1">
-          <HistoryTable entries={entries} />
+          <HistoryTable entries={entries} dayPriorMap={dayPriorMap} />
         </div>
 
         {/* Footer */}
