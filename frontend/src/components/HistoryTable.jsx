@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Hash } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Hash, ArrowUp, ArrowDown } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -45,33 +45,32 @@ export function HistoryTable({ entries }) {
     return `${diffDays}d ago`;
   };
 
+  // Running net total for each row
   const runningTotals = useMemo(() => {
-    const totals = [];
-    const sorted = [...entries].reverse();
+    const sorted = [...entries].reverse(); // oldest first
     let cumulative = 0;
     const map = new Map();
     for (const e of sorted) {
-      cumulative += e.value;
+      cumulative += e.value; // negative values will subtract
       map.set(e._id, cumulative);
     }
-    for (const e of paginatedEntries) {
-      totals.push(map.get(e._id) || 0);
-    }
-    return totals;
+    return paginatedEntries.map((e) => map.get(e._id) || 0);
   }, [entries, paginatedEntries]);
 
   return (
-    <div className="rounded-2xl border border-slate-200/60 bg-white shadow-lg shadow-slate-200/50">
-      <div className="border-b border-slate-100 p-6">
+    <div className="rounded-xl bg-slate-900/80 overflow-hidden">
+      <div className="border-b border-white/5 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Trap History</h3>
-            <p className="text-sm text-slate-500">
-              {entries.length} total entries from ThingSpeak → MongoDB
+            <h3 className="text-lg font-semibold text-white">Trap History</h3>
+            <p className="text-sm text-slate-400">
+              {entries.length} total entries · 
+              <span className="text-emerald-400"> {entries.filter(e => e.value > 0).length} positive</span> · 
+              <span className="text-red-400"> {entries.filter(e => e.value < 0).length} negative</span>
             </p>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
-            <Clock className="h-5 w-5 text-slate-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-fuchsia-500/10 ring-1 ring-fuchsia-500/30">
+            <Clock className="h-5 w-5 text-fuchsia-400" />
           </div>
         </div>
       </div>
@@ -80,116 +79,118 @@ export function HistoryTable({ entries }) {
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/50">
-              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                #
-              </th>
-              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Entry ID
-              </th>
-              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Value
-              </th>
-              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Running Total
-              </th>
-              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Time
-              </th>
-              <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Ago
-              </th>
+            <tr className="border-b border-white/5">
+              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">#</th>
+              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Entry ID</th>
+              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Value</th>
+              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Net Total</th>
+              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Date</th>
+              <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Time</th>
+              <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Ago</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
-            {paginatedEntries.map((entry, idx) => (
-              <tr
-                key={entry._id}
-                className="transition-colors hover:bg-indigo-50/30"
-              >
-                <td className="whitespace-nowrap px-6 py-3.5 text-xs font-medium text-slate-400">
-                  {page * ITEMS_PER_PAGE + idx + 1}
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-600">
-                    <Hash className="h-3 w-3" />
-                    {entry._id.slice(-8)}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5">
-                  <span className="inline-flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-indigo-50 px-2.5 text-sm font-bold text-indigo-600">
-                    {entry.value}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5">
-                  <span className="text-sm font-semibold text-slate-700">
-                    {runningTotals[idx]}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5 text-sm text-slate-600">
-                  {formatDate(entry.createdAt)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5 text-sm text-slate-500">
-                  {formatTime(entry.createdAt)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5 text-right">
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-                    {getTimeAgo(entry.createdAt)}
-                  </span>
-                </td>
-              </tr>
-            ))}
+          <tbody className="divide-y divide-white/5">
+            {paginatedEntries.map((entry, idx) => {
+              const isNeg = entry.value < 0;
+              return (
+                <tr key={entry._id} className="transition-colors hover:bg-white/[0.02]">
+                  <td className="whitespace-nowrap px-6 py-3.5 text-xs font-medium text-slate-500">
+                    {page * ITEMS_PER_PAGE + idx + 1}
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-400">
+                      <Hash className="h-3 w-3" />
+                      {entry._id.slice(-8)}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-bold ${
+                      isNeg
+                        ? 'bg-red-500/10 text-red-400 ring-1 ring-red-500/20'
+                        : 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20'
+                    }`}>
+                      {isNeg
+                        ? <ArrowDown className="h-3 w-3" />
+                        : <ArrowUp className="h-3 w-3" />
+                      }
+                      {entry.value}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5">
+                    <span className={`text-sm font-semibold ${runningTotals[idx] < 0 ? 'text-red-400' : 'text-white'}`}>
+                      {runningTotals[idx].toLocaleString()}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5 text-sm text-slate-400">
+                    {formatDate(entry.createdAt)}
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5 text-sm text-slate-500">
+                    {formatTime(entry.createdAt)}
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5 text-right">
+                    <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                      {getTimeAgo(entry.createdAt)}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Mobile Cards */}
-      <div className="block md:hidden divide-y divide-slate-100">
-        {paginatedEntries.map((entry, idx) => (
-          <div key={entry._id} className="px-5 py-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-400">
-                  #{page * ITEMS_PER_PAGE + idx + 1}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-mono font-medium text-slate-600">
-                  <Hash className="h-3 w-3" />
-                  {entry._id.slice(-8)}
-                </span>
-              </div>
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-                {getTimeAgo(entry.createdAt)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="text-center">
-                  <p className="text-[10px] uppercase text-slate-400">Value</p>
-                  <span className="inline-flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-indigo-50 px-2 text-sm font-bold text-indigo-600">
-                    {entry.value}
+      <div className="block md:hidden divide-y divide-white/5">
+        {paginatedEntries.map((entry, idx) => {
+          const isNeg = entry.value < 0;
+          return (
+            <div key={entry._id} className="px-5 py-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-slate-500">
+                    #{page * ITEMS_PER_PAGE + idx + 1}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-mono font-medium text-slate-500">
+                    <Hash className="h-3 w-3" />
+                    {entry._id.slice(-8)}
                   </span>
                 </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase text-slate-400">Total</p>
-                  <span className="text-sm font-semibold text-slate-700">
-                    {runningTotals[idx]}
-                  </span>
-                </div>
+                <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                  {getTimeAgo(entry.createdAt)}
+                </span>
               </div>
-              <p className="text-xs text-slate-400">
-                {formatDate(entry.createdAt)} · {formatTime(entry.createdAt)}
-              </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-[10px] uppercase text-slate-600">Value</p>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-bold ${
+                      isNeg
+                        ? 'bg-red-500/10 text-red-400'
+                        : 'bg-emerald-500/10 text-emerald-400'
+                    }`}>
+                      {isNeg ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+                      {entry.value}
+                    </span>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] uppercase text-slate-600">Net Total</p>
+                    <span className={`text-sm font-semibold ${runningTotals[idx] < 0 ? 'text-red-400' : 'text-white'}`}>
+                      {runningTotals[idx].toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {formatDate(entry.createdAt)} · {formatTime(entry.createdAt)}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4">
+        <div className="flex items-center justify-between border-t border-white/5 px-6 py-4">
           <p className="text-xs text-slate-500">
             Showing {page * ITEMS_PER_PAGE + 1}–
             {Math.min((page + 1) * ITEMS_PER_PAGE, entries.length)} of{' '}
@@ -199,7 +200,7 @@ export function HistoryTable({ entries }) {
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -220,8 +221,8 @@ export function HistoryTable({ entries }) {
                   onClick={() => setPage(pageNum)}
                   className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition-colors ${
                     page === pageNum
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/30'
+                      : 'border border-white/10 text-slate-400 hover:bg-white/5'
                   }`}
                 >
                   {pageNum + 1}
@@ -231,7 +232,7 @@ export function HistoryTable({ entries }) {
             <button
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
